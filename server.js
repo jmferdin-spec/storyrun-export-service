@@ -155,17 +155,30 @@ function generateRouteSvg(encodedPolyline, opts) {
 
 // ─── Format helpers ────────────────────────────────────────────────────────────
 
-function formatDist(meters) { return (meters/1000).toFixed(2); }
+const METERS_PER_MILE = 1609.344;
+const METERS_PER_FOOT = 0.3048;
+
+function formatDist(meters, units) {
+  if (units === 'imperial') return (meters / METERS_PER_MILE).toFixed(2);
+  return (meters/1000).toFixed(2);
+}
 function formatTime(secs) {
   const h = Math.floor(secs/3600), m = Math.floor((secs%3600)/60), s = secs%60;
   return h>0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
 }
-function formatPace(mps) {
+function formatPace(mps, units) {
   if (!mps) return '0:00';
+  if (units === 'imperial') {
+    const secsPerMile = METERS_PER_MILE/mps;
+    return `${Math.floor(secsPerMile/60)}:${String(Math.round(secsPerMile%60)).padStart(2,'0')}`;
+  }
   const secsPerKm = 1000/mps;
   return `${Math.floor(secsPerKm/60)}:${String(Math.round(secsPerKm%60)).padStart(2,'0')}`;
 }
-function formatElev(m) { return `${Math.round(m)}m`; }
+function formatElev(m, units) {
+  if (units === 'imperial') return `${Math.round(m / METERS_PER_FOOT)}ft`;
+  return `${Math.round(m)}m`;
+}
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 }
@@ -265,6 +278,8 @@ function buildStatBlock(stats, vis, cfg, blockPos) {
   const ac = cfg.accentColor || '#FC4C02';
   const ls = cfg.letterSpacing ? `letter-spacing:${cfg.letterSpacing}em;` : '';
   const align = cfg.statAlignment || 'center';
+  const distUnit = cfg.units === 'imperial' ? 'mi' : 'km';
+  const paceUnit = cfg.units === 'imperial' ? '/mi' : '/km';
 
   const label = (t) => `<div style="font-size:${Math.round(f*0.27)}px;font-weight:400;color:${lc};letter-spacing:0.18em;text-transform:uppercase;margin-bottom:6px">${t}</div>`;
   const val   = (v, size=f) => `<div style="font-size:${size}px;font-weight:${fw};color:${sc};line-height:1;${ls}">${v}</div>`;
@@ -275,7 +290,7 @@ function buildStatBlock(stats, vis, cfg, blockPos) {
 
   if (cfg.templateId === 'gradient-bar') {
     const items = [
-      vis.distance && `<div style="text-align:center">${label('Distance')}${val(stats.distance+`<span style="font-size:0.38em;margin-left:4px">km</span>`)}</div>`,
+      vis.distance && `<div style="text-align:center">${label('Distance')}${val(stats.distance+`<span style="font-size:0.38em;margin-left:4px">${distUnit}</span>`)}</div>`,
       vis.time      && `<div style="text-align:center">${label('Time')}${val(stats.time,Math.round(f*0.72))}</div>`,
       vis.pace      && `<div style="text-align:center">${label('Pace')}${val(stats.pace,Math.round(f*0.72))}</div>`,
       vis.elevation && `<div style="text-align:center">${label('Elevation')}${val(stats.elevation,Math.round(f*0.72))}</div>`,
@@ -289,7 +304,7 @@ function buildStatBlock(stats, vis, cfg, blockPos) {
   if (cfg.templateId === 'athlete-poster') {
     return `<div style="${baseStyle}top:auto;bottom:0;transform:none;">
       <div style="width:110px;height:5px;background:${ac};border-radius:3px;margin-bottom:44px;${align==='center'?'margin-left:auto;margin-right:auto;':''}"></div>
-      ${vis.distance?`<div style="margin-bottom:14px">${label('Total Distance')}${val(stats.distance+`<span style="font-size:0.28em;vertical-align:middle;margin-left:10px">km</span>`,Math.round(f*1.6))}</div>`:''}
+      ${vis.distance?`<div style="margin-bottom:14px">${label('Total Distance')}${val(stats.distance+`<span style="font-size:0.28em;vertical-align:middle;margin-left:10px">${distUnit}</span>`,Math.round(f*1.6))}</div>`:''}
       <div style="display:flex;gap:56px;margin-top:28px;flex-wrap:wrap">
         ${vis.time?`<div>${label('Moving Time')}${val(stats.time,Math.round(f*0.65))}</div>`:''}
         ${vis.pace?`<div>${label('Avg Pace')}${val(stats.pace,Math.round(f*0.65))}</div>`:''}
@@ -301,7 +316,7 @@ function buildStatBlock(stats, vis, cfg, blockPos) {
 
   if (cfg.templateId === 'large-center') {
     return `<div style="${baseStyle}">
-      ${vis.distance?`<div style="margin-bottom:28px">${label('Distance')}${val(stats.distance+unit('km'),Math.round(f*1.45))}</div>`:''}
+      ${vis.distance?`<div style="margin-bottom:28px">${label('Distance')}${val(stats.distance+unit(distUnit),Math.round(f*1.45))}</div>`:''}
       ${divider}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:36px 56px;justify-content:center;text-align:center">
         ${vis.time?`<div>${label('Time')}${val(stats.time,Math.round(f*0.8))}</div>`:''}
@@ -315,7 +330,7 @@ function buildStatBlock(stats, vis, cfg, blockPos) {
   // minimal-bottom / route-focus (default)
   const row2 = [
     vis.time      && `<div style="margin-bottom:28px">${label('Time')}${val(stats.time,Math.round(f*0.72))}</div>`,
-    vis.pace      && `<div style="margin-bottom:28px">${label('Pace')}${val(stats.pace+`<span style="font-size:0.33em;font-weight:400;opacity:0.65;margin-left:6px">/km</span>`,Math.round(f*0.72))}</div>`,
+    vis.pace      && `<div style="margin-bottom:28px">${label('Pace')}${val(stats.pace+`<span style="font-size:0.33em;font-weight:400;opacity:0.65;margin-left:6px">${paceUnit}</span>`,Math.round(f*0.72))}</div>`,
     vis.elevation && `<div style="margin-bottom:28px">${label('Elevation')}${val(stats.elevation,Math.round(f*0.72))}</div>`,
   ].filter(Boolean);
 
@@ -323,7 +338,7 @@ function buildStatBlock(stats, vis, cfg, blockPos) {
 
   return `<div style="${baseStyle}${bottomStyle}">
     ${divider}
-    ${vis.distance?`<div style="margin-bottom:28px">${label('Distance')}${val(stats.distance+unit('km'))}</div>`:''}
+    ${vis.distance?`<div style="margin-bottom:28px">${label('Distance')}${val(stats.distance+unit(distUnit))}</div>`:''}
     ${row2.length?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:36px 56px;">${row2.join('')}</div>`:''}
     ${vis.date?`<div style="font-size:${Math.round(f*0.28)}px;color:${lc};letter-spacing:0.14em;text-transform:uppercase;margin-top:18px">${stats.date}</div>`:''}
   </div>`;
@@ -357,13 +372,14 @@ app.post('/generate', auth, async (req, res) => {
   let page;
   try {
     const act = cfg.activity;
+    const units = cfg.units || 'metric';
     const stats = act ? {
-      distance:  formatDist(act.distance),
+      distance:  formatDist(act.distance, units),
       time:      formatTime(act.moving_time),
-      pace:      formatPace(act.average_speed),
-      elevation: formatElev(act.total_elevation_gain),
+      pace:      formatPace(act.average_speed, units),
+      elevation: formatElev(act.total_elevation_gain, units),
       date:      formatDate(act.start_date_local),
-    } : { distance:'10.00', time:'52:30', pace:'5:15', elevation:'120m', date:'Jan 1, 2024' };
+    } : { distance:'10.00', time:'52:30', pace:'5:15', elevation: units === 'imperial' ? '394ft' : '120m', date:'Jan 1, 2024' };
 
     let routeSvg;
     if (cfg.showRoute && act?.map?.summary_polyline) {
