@@ -1,7 +1,6 @@
-# Puppeteer on Railway — Node 20 slim base with Chromium deps
 FROM node:20-slim
 
-# Install Chromium dependencies
+# Install Chromium and its dependencies
 RUN apt-get update && apt-get install -y \
     chromium \
     fonts-liberation \
@@ -25,19 +24,23 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-# Tell Puppeteer to use the system Chromium instead of downloading its own
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     NODE_ENV=production
 
 WORKDIR /app
 
-# Install dependencies first (better layer caching)
+# Install ALL dependencies (including dev, needed for TypeScript compile)
 COPY package.json ./
-RUN npm install --omit=dev
+RUN npm install
 
-# Copy compiled output
-COPY dist/ ./dist/
+# Copy source and compile TypeScript → dist/
+COPY tsconfig.json ./
+COPY src/ ./src/
+RUN npm run build
+
+# Remove dev dependencies after build
+RUN npm prune --omit=dev
 
 EXPOSE 3001
 
