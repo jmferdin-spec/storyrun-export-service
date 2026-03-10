@@ -1,0 +1,29 @@
+{
+  "name": "storyrun-export-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone PNG export service for StoryRun — runs on Railway/Render",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "ts-node src/server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "puppeteer": "^22.12.1",
+    "helmet": "^7.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/node": "^20.14.10",
+    "typescript": "^5.5.3",
+    "ts-node": "^10.9.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
